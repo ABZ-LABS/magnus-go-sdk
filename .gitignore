@@ -1,0 +1,18 @@
+# Build output
+/dist/
+*.exe
+*.test
+*.out
+
+# Coverage
+coverage.txt
+coverage.html
+
+# Editors / OS
+.DS_Store
+.idea/
+.vscode/
+
+# Local secrets — the livecheck reads MAGNUS_API_KEY from the environment
+.env
+.env.*

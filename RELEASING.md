@@ -1,0 +1,38 @@
+# Releasing
+
+A Go module is released by pushing a semver tag: the Go module proxy fetches it
+from GitHub, and [pkg.go.dev](https://pkg.go.dev/github.com/MeGrimlock/magnus-go-sdk)
+indexes it. There is nothing to upload. The repository must be public.
+
+## Each release
+
+1. Set `Version` in `client.go`.
+2. Run the livecheck against the production API with a test agent. All
+   fourteen checks must pass:
+
+   ```bash
+   go run ./cmd/magnus-livecheck -agent <test-agent>
+   ```
+
+3. Commit, then tag and push:
+
+   ```bash
+   git tag v0.1.0
+   git push origin main v0.1.0
+   ```
+
+4. Ask the proxy for it, so it shows up on pkg.go.dev without waiting:
+
+   ```bash
+   GOPROXY=proxy.golang.org go list -m github.com/MeGrimlock/magnus-go-sdk@v0.1.0
+   ```
+
+CI flags a tag that does not match `Version`, but by then the proxy may already
+have it, so check before tagging. A published tag is permanent: the proxy keeps
+it even if the tag is deleted, so a mistake is fixed with the next version,
+never by moving a tag.
+
+The module path is `github.com/MeGrimlock/magnus-go-sdk`. Moving the repository
+to another owner changes the path, which is a breaking change for every user.
+
+If `CONTRACT.md` changed, it changes identically in the Python and Node SDKs.

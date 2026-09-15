@@ -1,0 +1,10 @@
+Magnus SDK for Go
+Copyright 2026 Gonzalo Garategui
+
+This product includes the Magnus client library, developed as part of
+Magnus (https://iamagnus.com) and released under the Apache License 2.0.
+
+"Magnus" and "iamagnus" identify the Magnus project. Under section 6 of the
+License, they may not be used to name or endorse a product or service other
+than Magnus itself, beyond what is needed to describe where this library
+comes from.
