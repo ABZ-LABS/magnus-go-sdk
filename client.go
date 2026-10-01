@@ -54,7 +54,7 @@ const (
 
 // Client talks to a Magnus deployment.
 type Client struct {
-	// BaseURL is the server root, e.g. https://api.iamagnus.com. Not the /v1
+	// BaseURL is the server root, e.g. https://app.iamagnus.com. Not the /v1
 	// prefix — the health probe lives outside it.
 	BaseURL string
 	// User is the end-user identifier for multi-tenant attribution, sent as the
@@ -132,7 +132,7 @@ func New(baseURL, apiKey string, opts ...Option) *Client {
 	if client.BaseURL == "" {
 		client.configErr = fmt.Errorf(
 			"%w: BaseURL is required — pass the Magnus server root, e.g. "+
-				"https://api.iamagnus.com (not the /v1 prefix)", ErrInvalidRequest)
+				"https://app.iamagnus.com (not the /v1 prefix)", ErrInvalidRequest)
 	}
 	return client
 }
@@ -555,11 +555,11 @@ func (c *Client) SendMessage(agentID, content string, opts *SendMessageOpts) (st
 
 // ------------------------------------------------------------ conversation
 
-// Conversation is a thread with an agent, identified by its session id.
+// Conversation is a thread with an agent for one end user.
 //
 // The server reads only the last user message and keeps the conversation's
-// memory and state server-side; the thread is the session id, not the history
-// a client resends.
+// memory and state server-side. The thread is (API key, user, agent), not the
+// history a client resends; SessionID reports which session the server ran on.
 type Conversation struct {
 	client  *Client
 	agentID string
@@ -577,11 +577,16 @@ type Conversation struct {
 	LastUsageSource string
 }
 
-// Conversation opens a thread that carries its session id across turns.
+// Conversation opens a thread with an agent for one end user.
 //
 // Prefer it over SendMessage with History: the server keeps memory server-side
-// and identifies the thread by session id. Without one, continuity falls back
-// to a time window and is lost silently when it expires.
+// and reads only the last user message. A thread is the end user, not resent
+// history: there is one live thread per (API key, user, agent), and it ends
+// after 30 idle minutes. Pass a user, or everyone calling through the key
+// shares one thread.
+//
+// The conversation sends back the session id the server reports, but the
+// server does not let a session id select, resume or reset a thread.
 func (c *Client) Conversation(agentID, user string) *Conversation {
 	if user == "" {
 		user = c.User
@@ -589,7 +594,10 @@ func (c *Client) Conversation(agentID, user string) *Conversation {
 	return &Conversation{client: c, agentID: agentID, user: user}
 }
 
-// Resume opens a thread on a session that already exists.
+// Resume opens a conversation that starts out holding sessionID.
+//
+// The server continues the end user's live thread whatever the session id, so
+// this only matters when that user has no live thread with the agent.
 func (c *Client) Resume(agentID, user, sessionID string) (*Conversation, error) {
 	if !uuidRe.MatchString(sessionID) {
 		return nil, fmt.Errorf("%w: sessionID must be a UUID, got %q",
@@ -654,7 +662,10 @@ func (cv *Conversation) StreamContext(
 		})
 }
 
-// Reset forgets the session id, so the next turn opens a new conversation.
+// Reset forgets the session id this conversation holds.
+//
+// The server still continues the end user's live thread: a new thread starts
+// after 30 idle minutes, or with a different user.
 func (cv *Conversation) Reset() {
 	cv.SessionID = ""
 	cv.SessionSource = ""

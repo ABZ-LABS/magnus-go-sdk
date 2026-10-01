@@ -1,25 +1,42 @@
 # Magnus `/v1` wire contract
 
+**English** · [Español](CONTRACT.es.md)
+
 The wire format the Magnus Core API speaks, and the single source of truth for
 the Go, Node and Python SDKs.
 
-Every SDK ships a mock server implementing exactly this document, and its unit
-suite runs against that mock. If the API changes, this file changes first,
-then the three mocks, and the suites fail until the clients catch up.
+Every SDK ships a mock server implementing this document, and its unit suite
+runs against that mock. If the API changes, this file changes first, then the
+three mocks, and the suites fail until the clients catch up.
 
 ## Base URL and mounting
 
-- The client is configured with the **server root** — `https://api.iamagnus.com`
-  for the hosted service, or the root of another Magnus deployment. Not the `/v1`
-  prefix: the health probe lives outside it.
+- The client is configured with the **server root**: `https://app.iamagnus.com`
+  for the hosted service (the dashboard's own origin, which forwards both `/v1`
+  and `/api`), or the root of another Magnus deployment. Not the `/v1` prefix:
+  the health probe lives outside it.
 - Chat endpoints live under `/v1`. The health probe lives under `/api`.
 
 ## Authentication
 
-`Authorization: Bearer <key>` (default) or `X-API-Key: <key>`.
+`Authorization: Bearer <key>` (default; the `Bearer ` prefix is case-sensitive)
+or `X-API-Key: <key>`.
 
-Accepted credentials: Magnus JWT, System API Key, User API Key. A missing or
-unparseable credential is `401` with `code: null` / `code: "invalid_api_key"`.
+Accepted credentials:
+
+- **System API Key**, created in the dashboard. A key is created for **one
+  agent** and always answers as that agent. Keys created before agent binding
+  existed are org-wide.
+- User API Key.
+- Magnus **access-token** JWT. A refresh token is refused.
+
+| Situation | Status | `code` |
+|---|---|---|
+| no credential | `401` | `null` |
+| a credential that is not recognised (including a System key of a deactivated organization) | `401` | `invalid_api_key` |
+| a recognised credential with no organization | `403` | `no_organization` |
+| a recognised credential whose organization is deactivated | `403` | `organization_deactivated` |
+| the organization's status could not be read | `503` | `server_error` |
 
 ## `GET /api/health/simple` — unauthenticated
 
@@ -35,48 +52,86 @@ alike.
 
 ```json
 {"object": "list", "data": [
-  {"id": "magnus_standard", "object": "model", "created": 0,
+  {"id": "magnus_standard", "object": "model", "created": 1767225600,
    "owned_by": "magnus", "permission": [], "root": "magnus_standard", "parent": null}
 ]}
 ```
 
-Scoped to the key's organisation. Models are Magnus **personas**, not LLMs.
+Models are Magnus **agents** (personas), not LLMs. A key bound to an agent
+lists exactly that agent. An org-wide key or a JWT lists the organization's
+active agents plus the platform's global ones.
 
 ## `GET /v1/models/{id}`
 
-The model object, or `404` with `code: "model_not_found"`.
-`magnus` is an alias for `magnus_standard`.
+The model object, or `404` with `code: "model_not_found"` and `param: "model"`.
+With a bound key, every id other than its agent is `404`. `magnus` is an alias
+for `magnus_standard` when that agent is visible to the caller.
 
 ## `POST /v1/chat/completions`
+
+Send a JSON body with `Content-Type: application/json`.
 
 ### Request
 
 | Field | Notes |
 |---|---|
-| `model` | persona id; defaults to `magnus_standard` |
+| `model` | See [Which agent answers](#which-agent-answers). |
 | `messages` | **required**, list. Only the *last* message with `role: "user"` and non-empty text is read. |
-| `user` | end-user identifier for multi-tenant attribution |
-| `session_id` | Magnus extension. Must be a **UUID** or `400`. Also accepted as the `X-Magnus-Session-Id` header. |
+| `user` | **The conversation key.** The same value continues that person's thread; see [Threads](#threads). |
+| `session_id` | Magnus extension. Must be a **UUID** or `400`. Also accepted as the `X-Magnus-Session-Id` header. It does not select a thread; see [Threads](#threads). |
 | `stream` | `true` → `text/event-stream` |
 | `stream_options.include_usage` | `true` → extra final chunk carrying `usage` |
 
 `content` is either a string or a list of parts
 (`[{"type": "text", "text": "..."}, {"type": "image_url", ...}]`); the text parts
-are concatenated. A message whose only parts are images yields no text.
+are joined. A message whose only parts are images has no text, which is a
+`400`.
 
-**History is not state.** The server keeps conversation state server-side and
-reads only the last user message, so resending history does not restore a
-thread — `session_id` does. Without one, continuity is derived from the caller's
-last message within a server-configured time window, and is lost silently when
-that window passes.
+### Which agent answers
+
+- **A key bound to an agent** always runs that agent. A `model` naming a
+  *different* agent of the organization is refused with `400` /
+  `code: "model_not_allowed"` / `param: "model"`. Any other value (`gpt-4o`,
+  `magnus`, an empty string) is a label from an OpenAI client and is ignored.
+- **An org-wide key or a JWT**: an omitted `model`, `magnus` or
+  `magnus_standard` runs the organization's default agent; another agent id
+  runs that agent. An id that matches no agent is not rejected: the turn runs
+  on `magnus_standard`.
+
+The response's `model` echoes what the request named, not necessarily who
+answered.
+
+### Threads
+
+**History is not state.** The server keeps the conversation's memory and state
+server-side and reads only the last user message, so resending history does not
+restore anything.
+
+There is **one live thread per (API key, `user`, agent)**. The same `user`
+continues it; a different `user` is a different person with a different thread.
+Without `user`, everyone calling through the key is the same person and shares
+one thread. `user` is scoped to the key: a new or rotated key starts every
+person over, with no thread and no memory.
+
+A thread ends after **30 idle minutes** (a server setting); the next turn
+starts a new one.
+
+`session_id` is validated and echoed, but it **cannot select, resume or reset a
+thread**: the server continues the identity's live thread and still reports
+`session_source: "explicit"`. It only takes effect when that identity has no
+thread with the agent yet.
 
 ### Refused with `400` / `code: "unsupported_parameter"`
 
 `tools`, `tool_choice`, `functions`, `function_call`, `response_format` when
-non-empty, and `n` when not `1`. Magnus runs its own agent pipeline: tools are
-configured per agent and the response format is the agent's decision.
+non-empty, and `n` when not `1`. `param` names the field. Magnus runs its own
+agent pipeline: tools are configured per agent and the response format is the
+agent's decision.
 
-Empty values (`{"tools": []}`, `{"response_format": {}}`, `{"n": 1}`) pass.
+Empty values (`{"tools": []}`, `{"response_format": {}}`, `{"n": 1}`) pass. Some
+OpenAI clients send defaults that count as non-empty —
+`tool_choice: "auto"` or `"none"`, `response_format: {"type": "text"}` — and are
+refused; strip them.
 
 ### Silently ignored
 
@@ -92,15 +147,20 @@ after a timeout must replay rather than re-run.
 - repeat → the stored response, without running a turn
 - still in flight → `409` / `code: "request_in_progress"`
 - `5xx` → key released, a retry runs again
-- `4xx` → cached (deterministic)
+- a turn that failed with a `4xx` → cached (deterministic)
 - **incompatible with `stream: true`** — a streamed body cannot be replayed, so
-  the key is released and a retry re-runs the turn.
+  the key is released and a retry re-runs the turn. A key that already holds a
+  stored response returns that JSON, even with `stream: true`.
+
+The key is scoped to the **organization for 24 hours** and matched on the
+header alone — not on the body, the API key or `user`. Use a fresh UUID per
+logical turn and never reuse one across end users.
 
 ### Buffered response
 
 ```json
 {
-  "id": "chatcmpl-...", "object": "chat.completion", "created": 0,
+  "id": "chatcmpl-...", "object": "chat.completion", "created": 1767225600,
   "model": "magnus_standard",
   "choices": [{"index": 0,
                "message": {"role": "assistant", "content": "..."},
@@ -117,13 +177,26 @@ after a timeout must replay rather than re-run.
 }
 ```
 
-`magnus.session_id` is the conversation the server **actually ran on**. The
-pipeline may roll the session mid-turn, so it can differ from what was sent, and
-it — not the request value — is what the next turn must carry.
+`magnus.session_id` is the thread the server **actually ran on**. The pipeline
+may roll the session mid-turn, so it can differ from what was sent. On a
+refusal or an error it echoes the id the request resolved to.
 
 `usage_source` distinguishes real provider token counts (`measured`) from the
-`len(text) // 4` fallback used by turns that never reached an LLM (`estimated`).
-Anyone metering or billing off `usage` has to be able to tell them apart.
+`len(text) // 4` fallback used by turns that never reached an LLM (`estimated`),
+which includes the refusals below. Anyone metering or billing off `usage` has to
+be able to tell them apart.
+
+### Limits that answer `200`
+
+Some limits do not answer `429`. The turn returns `200` with a sentence as the
+assistant message, `usage_source: "estimated"` and `trace_id: null`:
+
+- turns per end user per hour (100 by default; without `user`, the whole key
+  shares this budget);
+- turns per organization per hour, set by the plan;
+- the monthly LLM budget;
+- concurrent turns per organization;
+- the platform shedding load.
 
 ### Streamed response (`stream: true`)
 
@@ -137,12 +210,12 @@ Anyone metering or billing off `usage` has to be able to tell them apart.
 5. `[DONE]`
 
 Two shapes are normal and a client must accept both: a turn that streamed token
-by token, and a turn delivered as **one** delta (the server may send a turn whole instead of
-streaming it).
+by token, and a turn delivered as **one** content delta (the server may send a
+turn whole instead of streaming it).
 
-**The Magnus extensions ride on whichever chunk carries them** — the first
-content chunk on the buffered path, the closing chunk on the live path. Merge
-them as they arrive; do not expect a fixed position.
+**The Magnus extensions ride on whichever chunk carries them**: the single
+content chunk when the turn arrives whole, the closing chunk when it streamed
+token by token. Merge them as they arrive; do not expect a fixed position.
 
 #### The failure that looks like success
 
@@ -157,6 +230,10 @@ a closing chunk that carries both `finish_reason: "stop"` and an `error` object.
            "param": null, "code": null}}
 ```
 
+`type` is `server_error`, or `invalid_request_error` for a turn error below
+`500`; `code` is `null` or the turn's error code. No usage chunk and no Magnus
+extensions follow an error.
+
 A client that ignores it hands a truncated or empty answer to its caller as
 though the turn had succeeded. **Every SDK must raise here.**
 
@@ -168,18 +245,23 @@ though the turn had succeeded. **Every SDK must raise here.**
 
 | Status | `type` | `code` |
 |---|---|---|
-| 400 | `invalid_request_error` | `unsupported_parameter`, or `null` |
+| 400 | `invalid_request_error` | `unsupported_parameter`, `model_not_allowed`, a turn error code, or `null` |
 | 401 | `invalid_request_error` | `invalid_api_key` or `null` |
+| 403 | `invalid_request_error` | `no_organization`, `organization_deactivated` |
 | 404 | `invalid_request_error` | `model_not_found` |
 | 409 | `invalid_request_error` | `request_in_progress` |
 | 429 | `rate_limit_error` | `rate_limit_exceeded` |
-| 5xx | `server_error` | pipeline error code or `null` |
+| 5xx | `server_error` | `internal`, `server_error`, a pipeline error code, or `null` |
 
 ## Rate limiting
 
-`POST /v1/chat/completions` is limited per API key (120 per window). Every
-response carries `X-RateLimit-Remaining` and `X-RateLimit-Reset`; a `429` also
-carries `Retry-After` in seconds when the reset time is known.
+`POST /v1/chat/completions` is limited to **120 requests per fixed one-hour
+window**, counted from the first request: per System API Key, and per user for
+JWTs and User API Keys. Idempotent replays count.
+
+Responses that passed authentication carry `X-RateLimit-Remaining` and
+`X-RateLimit-Reset` (an ISO-8601 timestamp). A `429` also carries `Retry-After`
+in seconds when the reset time is known. A `401` or `403` carries neither.
 
 ## Retry policy the SDKs implement
 
@@ -189,6 +271,26 @@ turn runs the pipeline twice and can duplicate side effects.
 
 `Retry-After` is honoured when present; otherwise exponential backoff with
 jitter. `4xx` other than `429` is never retried.
+
+## Reserved inputs
+
+- A last user message that starts with `### Task:` skips the agent: the message
+  list goes to a plain LLM call, with no thread, and `usage_source` is `"none"`.
+  Chat front ends send these for titles and tags.
+- A message that is exactly `reset`, `/bot` or `/auto` (any case) is a
+  command, not a turn: it ends a human takeover, if there is one, and answers a
+  fixed sentence without running the agent. A message that starts with
+  `/behavior` is a debug command.
+- While a human operator has taken over a conversation, `/v1` answers `200`
+  with a fixed placeholder, and the operator's reply does not reach the API
+  caller.
+
+## Known limits
+
+- A body that is not JSON returns `500`, not `400`.
+- Browsers: the hosted origin's CORS preflight does not allow the
+  `Idempotency-Key` or `X-Magnus-Session-Id` headers. Call `/v1` from a
+  server.
 
 ---
 
@@ -208,7 +310,7 @@ reported as "check 9 failed" without pasting a log.
 | 5 | a buffered turn returns non-empty text | the agent pipeline runs |
 | 6 | the response carries `magnus.session_id` and `session_source` | the extensions survive |
 | 7 | `usage.total_tokens > 0` and `usage_source` is set | metering is wired |
-| 8 | two turns on one `Conversation` reuse the session | continuity, the thing history cannot do |
+| 8 | two turns on one `Conversation` stay on one session | continuity, the thing history cannot do |
 | 9 | a streamed turn yields text and closes cleanly | SSE parsing, both stream shapes |
 | 10 | a streamed turn with `include_usage` reports usage | the final usage chunk |
 | 11 | sending `tools` fails with `unsupported_parameter` naming `tools` | the typed error envelope |
@@ -217,5 +319,5 @@ reported as "check 9 failed" without pasting a log.
 | 14 | `X-RateLimit-Remaining` was seen on a response | the budget is observable |
 
 Checks 5, 8, 9, 10 and 13 **run real turns** against the target agent, which
-costs tokens and records real conversations. Point the livecheck at a test
-agent, or accept the handful of turns.
+costs tokens and records real conversations. Run them with a key created for a
+test agent: a key answers only as its own agent.

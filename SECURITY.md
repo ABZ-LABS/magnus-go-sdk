@@ -1,5 +1,7 @@
 # Security
 
+**English** · [Español](SECURITY.es.md)
+
 ## Reporting a vulnerability
 
 Report it privately through GitHub's [security advisory

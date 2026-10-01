@@ -1,5 +1,7 @@
 # Releasing
 
+**English** · [Español](RELEASING.es.md)
+
 A Go module is released by pushing a semver tag: the Go module proxy fetches it
 from GitHub, and [pkg.go.dev](https://pkg.go.dev/github.com/MeGrimlock/magnus-go-sdk)
 indexes it. There is nothing to upload. The repository must be public.
@@ -35,4 +37,11 @@ never by moving a tag.
 The module path is `github.com/MeGrimlock/magnus-go-sdk`. Moving the repository
 to another owner changes the path, which is a breaking change for every user.
 
-If `CONTRACT.md` changed, it changes identically in the Python and Node SDKs.
+## The version appears in the install instructions
+
+The README's *Installing without the Go module proxy* section pins a tag. When
+the version changes, update it there, in `README.es.md`, and in the Magnus
+dashboard (`sdk_links_section.dart` in the front end).
+
+If `CONTRACT.md` changed, it changes identically in the Python and Node SDKs, and
+so does its translation, `CONTRACT.es.md`.
