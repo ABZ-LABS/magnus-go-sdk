@@ -11,7 +11,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/MeGrimlock/magnus-go-sdk/livecheck"
+	"github.com/ABZ-LABS/magnus-go-sdk/livecheck"
 )
 
 func main() {

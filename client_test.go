@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	magnus "github.com/MeGrimlock/magnus-go-sdk"
-	"github.com/MeGrimlock/magnus-go-sdk/mockmagnus"
+	magnus "github.com/ABZ-LABS/magnus-go-sdk"
+	"github.com/ABZ-LABS/magnus-go-sdk/mockmagnus"
 )
 
 // newFixture starts a mock and a client with retries off: a test that wants

@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	magnus "github.com/MeGrimlock/magnus-go-sdk"
+	magnus "github.com/ABZ-LABS/magnus-go-sdk"
 )
 
 // Written as escapes rather than literals so the source stays plain ASCII.

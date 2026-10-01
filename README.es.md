@@ -8,7 +8,7 @@ entiende y redacta; las reglas del agente deciden qué pasa y qué acciones
 esperan una confirmación, y cada turno deja una traza.
 
 ```bash
-go get github.com/MeGrimlock/magnus-go-sdk
+go get github.com/ABZ-LABS/magnus-go-sdk
 ```
 
 Go 1.22+. Solo la biblioteca estándar. Si `go get` falla, el módulo se puede
@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"log"
 
-	magnus "github.com/MeGrimlock/magnus-go-sdk"
+	magnus "github.com/ABZ-LABS/magnus-go-sdk"
 )
 
 func main() {
@@ -53,17 +53,17 @@ func main() {
 
 `go get` normalmente descarga a través de `proxy.golang.org` y verifica el
 resultado contra `sum.golang.org`. Usa esto cuando alguno de los dos no está
-accesible. La ruta de import sigue siendo `github.com/MeGrimlock/magnus-go-sdk`
+accesible. La ruta de import sigue siendo `github.com/ABZ-LABS/magnus-go-sdk`
 en todos los casos.
 
 **Desde GitHub.** `GOPRIVATE` hace que Go se salte los dos y clone el tag con
 `git`:
 
 ```bash
-GOPRIVATE=github.com/MeGrimlock/magnus-go-sdk go get github.com/MeGrimlock/magnus-go-sdk@v0.1.0
+GOPRIVATE=github.com/ABZ-LABS/magnus-go-sdk go get github.com/ABZ-LABS/magnus-go-sdk@v0.1.0
 ```
 
-`go env -w GOPRIVATE=github.com/MeGrimlock/magnus-go-sdk` lo deja permanente en
+`go env -w GOPRIVATE=github.com/ABZ-LABS/magnus-go-sdk` lo deja permanente en
 esa máquina. A partir de ahí `go.sum` fija el hash de lo que se descargó. Fija
 un tag, como arriba: `@main` sigue al último commit, que no es una versión
 publicada.
@@ -72,8 +72,8 @@ publicada.
 módulo dentro del proyecto y apunta la ruta de import a la copia:
 
 ```bash
-git clone --branch v0.1.0 https://github.com/MeGrimlock/magnus-go-sdk third_party/magnus-go-sdk
-go mod edit -replace github.com/MeGrimlock/magnus-go-sdk=./third_party/magnus-go-sdk
+git clone --branch v0.1.0 https://github.com/ABZ-LABS/magnus-go-sdk third_party/magnus-go-sdk
+go mod edit -replace github.com/ABZ-LABS/magnus-go-sdk=./third_party/magnus-go-sdk
 go mod tidy
 ```
 
@@ -281,7 +281,7 @@ contra un despliegue real y sale con un código distinto de cero salvo que pasen
 todos:
 
 ```bash
-go install github.com/MeGrimlock/magnus-go-sdk/cmd/magnus-livecheck@latest
+go install github.com/ABZ-LABS/magnus-go-sdk/cmd/magnus-livecheck@latest
 
 export MAGNUS_BASE_URL=https://app.iamagnus.com
 export MAGNUS_API_KEY=magnus_sys_...   # una key creada para un agente de prueba

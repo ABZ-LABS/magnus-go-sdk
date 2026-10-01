@@ -8,7 +8,7 @@ writes; the agent's rules decide what happens and which actions wait for a
 confirmation, and every turn leaves a trace.
 
 ```bash
-go get github.com/MeGrimlock/magnus-go-sdk
+go get github.com/ABZ-LABS/magnus-go-sdk
 ```
 
 Go 1.22+. Standard library only. If `go get` fails, the module can be fetched
@@ -23,7 +23,7 @@ import (
 	"fmt"
 	"log"
 
-	magnus "github.com/MeGrimlock/magnus-go-sdk"
+	magnus "github.com/ABZ-LABS/magnus-go-sdk"
 )
 
 func main() {
@@ -53,15 +53,15 @@ func main() {
 
 `go get` normally downloads through `proxy.golang.org` and checks the result
 against `sum.golang.org`. Use this when either is out of reach. The import path
-stays `github.com/MeGrimlock/magnus-go-sdk` in every case.
+stays `github.com/ABZ-LABS/magnus-go-sdk` in every case.
 
 **From GitHub.** `GOPRIVATE` makes Go skip both and clone the tag with `git`:
 
 ```bash
-GOPRIVATE=github.com/MeGrimlock/magnus-go-sdk go get github.com/MeGrimlock/magnus-go-sdk@v0.1.0
+GOPRIVATE=github.com/ABZ-LABS/magnus-go-sdk go get github.com/ABZ-LABS/magnus-go-sdk@v0.1.0
 ```
 
-`go env -w GOPRIVATE=github.com/MeGrimlock/magnus-go-sdk` makes it permanent on
+`go env -w GOPRIVATE=github.com/ABZ-LABS/magnus-go-sdk` makes it permanent on
 that machine. From then on `go.sum` pins the hash of what was downloaded. Pin a
 tag, as above: `@main` follows the latest commit, which is not a release.
 
@@ -69,8 +69,8 @@ tag, as above: `@main` follows the latest commit, which is not a release.
 the module into the project and point the import path at the copy:
 
 ```bash
-git clone --branch v0.1.0 https://github.com/MeGrimlock/magnus-go-sdk third_party/magnus-go-sdk
-go mod edit -replace github.com/MeGrimlock/magnus-go-sdk=./third_party/magnus-go-sdk
+git clone --branch v0.1.0 https://github.com/ABZ-LABS/magnus-go-sdk third_party/magnus-go-sdk
+go mod edit -replace github.com/ABZ-LABS/magnus-go-sdk=./third_party/magnus-go-sdk
 go mod tidy
 ```
 
@@ -269,7 +269,7 @@ rotated key starts every person over.
 against a real deployment and exits non-zero unless all of them pass:
 
 ```bash
-go install github.com/MeGrimlock/magnus-go-sdk/cmd/magnus-livecheck@latest
+go install github.com/ABZ-LABS/magnus-go-sdk/cmd/magnus-livecheck@latest
 
 export MAGNUS_BASE_URL=https://app.iamagnus.com
 export MAGNUS_API_KEY=magnus_sys_...   # a key created for a test agent

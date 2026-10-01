@@ -5,7 +5,7 @@
 ## Reportar una vulnerabilidad
 
 Repórtala en privado mediante el [formulario de avisos de seguridad de
-GitHub](https://github.com/MeGrimlock/magnus-go-sdk/security/advisories/new). Por favor, no
+GitHub](https://github.com/ABZ-LABS/magnus-go-sdk/security/advisories/new). Por favor, no
 abras un issue público para eso.
 
 Recibirás un acuse de recibo en pocos días. Si corresponde una corrección, se

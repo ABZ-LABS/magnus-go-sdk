@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	magnus "github.com/MeGrimlock/magnus-go-sdk"
-	"github.com/MeGrimlock/magnus-go-sdk/mockmagnus"
+	magnus "github.com/ABZ-LABS/magnus-go-sdk"
+	"github.com/ABZ-LABS/magnus-go-sdk/mockmagnus"
 )
 
 func envelope(message, errType, param, code string) map[string]any {

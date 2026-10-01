@@ -5,7 +5,7 @@
 ## Reporting a vulnerability
 
 Report it privately through GitHub's [security advisory
-form](https://github.com/MeGrimlock/magnus-go-sdk/security/advisories/new). Please do not
+form](https://github.com/ABZ-LABS/magnus-go-sdk/security/advisories/new). Please do not
 open a public issue for one.
 
 Expect an acknowledgement within a few days. If a fix is warranted, it ships

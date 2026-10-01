@@ -1,3 +1,3 @@
-module github.com/MeGrimlock/magnus-go-sdk
+module github.com/ABZ-LABS/magnus-go-sdk
 
 go 1.22

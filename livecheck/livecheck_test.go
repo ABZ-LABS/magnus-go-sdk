@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/MeGrimlock/magnus-go-sdk/livecheck"
-	"github.com/MeGrimlock/magnus-go-sdk/mockmagnus"
+	"github.com/ABZ-LABS/magnus-go-sdk/livecheck"
+	"github.com/ABZ-LABS/magnus-go-sdk/mockmagnus"
 )
 
 func run(t *testing.T, opts livecheck.Options) (int, string) {

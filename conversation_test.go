@@ -5,8 +5,8 @@ import (
 	"errors"
 	"testing"
 
-	magnus "github.com/MeGrimlock/magnus-go-sdk"
-	"github.com/MeGrimlock/magnus-go-sdk/mockmagnus"
+	magnus "github.com/ABZ-LABS/magnus-go-sdk"
+	"github.com/ABZ-LABS/magnus-go-sdk/mockmagnus"
 )
 
 func TestConversationOpensASessionOnTheFirstTurn(t *testing.T) {
