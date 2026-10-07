@@ -359,7 +359,7 @@ aleatoria. Un `4xx` distinto de `429` nunca se reintenta.
 
 # Apéndice: la lista de chequeos en vivo
 
-Cada SDK trae un `livecheck` que corre estos catorce chequeos contra un
+Cada SDK trae un `livecheck` que corre estos quince chequeos contra un
 despliegue real y sale con un código distinto de cero ante el primer fallo.
 Están numerados para que una luz verde signifique lo mismo en Go, Node y
 Python, y para que un fallo se pueda informar como "falló el chequeo 9" sin
@@ -381,6 +381,7 @@ pegar un log.
 | 12 | un `session_id` que no es UUID se rechaza | validación del lado del cliente |
 | 13 | un `Idempotency-Key` usado dos veces devuelve el mismo id de respuesta | repetición, no un segundo turno |
 | 14 | se vio `X-RateLimit-Remaining` en una respuesta | el cupo es observable |
+| 15 | `GET /v1/conversations/updates` responde una página con `data` y `handoff` | las respuestas del equipo llegan al SDK |
 
 Los chequeos 5, 8, 9, 10 y 13 **corren turnos reales** contra el agente
 objetivo, lo que gasta tokens y registra conversaciones reales. Córrelos con

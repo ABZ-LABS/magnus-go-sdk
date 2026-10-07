@@ -32,7 +32,7 @@ func TestAConformingServerIsACleanPass(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("exit %d:\n%s", code, out)
 	}
-	if !strings.Contains(out, "all 14 checks passed") {
+	if !strings.Contains(out, "all 15 checks passed") {
 		t.Errorf("missing the clean verdict:\n%s", out)
 	}
 	if strings.Contains(out, "FAIL") {
@@ -45,7 +45,7 @@ func TestEveryCheckActuallyRuns(t *testing.T) {
 	t.Cleanup(server.Close)
 
 	_, out := run(t, livecheck.Options{BaseURL: server.URL(), APIKey: "k"})
-	for n := 1; n <= 14; n++ {
+	for n := 1; n <= 15; n++ {
 		if !strings.Contains(out, fmt.Sprintf("%2d. ", n)) {
 			t.Errorf("check %d never ran:\n%s", n, out)
 		}
@@ -117,5 +117,18 @@ func TestAnEstimatedUsageSourceIsCalledOut(t *testing.T) {
 	_, out := run(t, livecheck.Options{BaseURL: server.URL(), APIKey: "k"})
 	if !strings.Contains(out, "do not bill on this") {
 		t.Errorf("the heuristic was not flagged:\n%s", out)
+	}
+}
+
+// Releasing UpdatesContext/FollowContext against a server that 404s it would
+// break every user of the release: check 15 is what stops it.
+func TestAServerWithoutTheUpdatesEndpointFailsTheGate(t *testing.T) {
+	server := mockmagnus.Start()
+	t.Cleanup(server.Close)
+	server.ServesNoUpdates = true
+
+	code, out := run(t, livecheck.Options{BaseURL: server.URL(), APIKey: "k"})
+	if code != 1 || !strings.Contains(out, "15. ") || !strings.Contains(out, "FAIL") {
+		t.Errorf("exit %d:\n%s", code, out)
 	}
 }

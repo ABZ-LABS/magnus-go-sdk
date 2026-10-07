@@ -74,9 +74,11 @@ type Server struct {
 	// OperatorMessages is what GET /v1/conversations/updates serves, oldest
 	// first; UpdatesPage its page size (50 when zero); BeforeUpdates runs before
 	// each such request, so a test can change state between polls.
-	OperatorMessages   []map[string]any
-	UpdatesPage        int
-	BeforeUpdates      func(*Server)
+	OperatorMessages []map[string]any
+	UpdatesPage      int
+	BeforeUpdates    func(*Server)
+	// ServesNoUpdates stands for a server older than the endpoint: it answers 404.
+	ServesNoUpdates    bool
 	Usage              map[string]int
 	RateLimitRemaining int
 	RateLimitReset     string
@@ -289,7 +291,7 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 			"invalid_request_error", "model", "model_not_found",
 		), nil)
 
-	case r.Method == http.MethodGet && r.URL.Path == "/v1/conversations/updates":
+	case r.Method == http.MethodGet && r.URL.Path == "/v1/conversations/updates" && !s.ServesNoUpdates:
 		s.updates(w, r)
 
 	case r.Method == http.MethodPost && r.URL.Path == "/v1/chat/completions":

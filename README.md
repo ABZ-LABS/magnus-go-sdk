@@ -58,7 +58,7 @@ stays `github.com/ABZ-LABS/magnus-go-sdk` in every case.
 **From GitHub.** `GOPRIVATE` makes Go skip both and clone the tag with `git`:
 
 ```bash
-GOPRIVATE=github.com/ABZ-LABS/magnus-go-sdk go get github.com/ABZ-LABS/magnus-go-sdk@v0.1.0
+GOPRIVATE=github.com/ABZ-LABS/magnus-go-sdk go get github.com/ABZ-LABS/magnus-go-sdk@v0.2.0
 ```
 
 `go env -w GOPRIVATE=github.com/ABZ-LABS/magnus-go-sdk` makes it permanent on
@@ -69,7 +69,7 @@ tag, as above: `@main` follows the latest commit, which is not a release.
 the module into the project and point the import path at the copy:
 
 ```bash
-git clone --branch v0.1.0 https://github.com/ABZ-LABS/magnus-go-sdk third_party/magnus-go-sdk
+git clone --branch v0.2.0 https://github.com/ABZ-LABS/magnus-go-sdk third_party/magnus-go-sdk
 go mod edit -replace github.com/ABZ-LABS/magnus-go-sdk=./third_party/magnus-go-sdk
 go mod tidy
 ```
@@ -286,7 +286,7 @@ rotated key starts every person over.
 
 ## Verifying a deployment
 
-`magnus-livecheck` runs the fourteen checks in [CONTRACT.md](CONTRACT.md)
+`magnus-livecheck` runs the fifteen checks in [CONTRACT.md](CONTRACT.md)
 against a real deployment and exits non-zero unless all of them pass:
 
 ```bash

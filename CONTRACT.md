@@ -345,7 +345,7 @@ jitter. `4xx` other than `429` is never retried.
 
 # Appendix: the live checklist
 
-Each SDK ships a `livecheck` that runs these fourteen checks against a real
+Each SDK ships a `livecheck` that runs these fifteen checks against a real
 deployment and exits non-zero on the first failure. They are numbered so that a
 green light means the same thing in Go, Node and Python, and so a failure can be
 reported as "check 9 failed" without pasting a log.
@@ -366,6 +366,7 @@ reported as "check 9 failed" without pasting a log.
 | 12 | a non-UUID `session_id` is refused | client-side validation |
 | 13 | one `Idempotency-Key` used twice returns the identical response id | replay, not a second turn |
 | 14 | `X-RateLimit-Remaining` was seen on a response | the budget is observable |
+| 15 | `GET /v1/conversations/updates` answers a page with `data` and `handoff` | the team's replies reach the SDK |
 
 Checks 5, 8, 9, 10 and 13 **run real turns** against the target agent, which
 costs tokens and records real conversations. Run them with a key created for a

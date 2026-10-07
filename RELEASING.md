@@ -10,7 +10,7 @@ indexes it. There is nothing to upload. The repository must be public.
 
 1. Set `Version` in `client.go`.
 2. Run the livecheck against the production API with a test agent. All
-   fourteen checks must pass:
+   fifteen checks must pass:
 
    ```bash
    go run ./cmd/magnus-livecheck -agent <test-agent>
@@ -19,14 +19,15 @@ indexes it. There is nothing to upload. The repository must be public.
 3. Commit, then tag and push:
 
    ```bash
-   git tag v0.1.0
-   git push origin main v0.1.0
+   git tag v0.2.0
+   git push origin main v0.2.0
    ```
 
-4. Ask the proxy for it, so it shows up on pkg.go.dev without waiting:
+4. CI asks the proxy for it once the tests and the version check pass, so it
+   shows up on pkg.go.dev without waiting. By hand, if that step failed:
 
    ```bash
-   GOPROXY=proxy.golang.org go list -m github.com/ABZ-LABS/magnus-go-sdk@v0.1.0
+   GOPROXY=proxy.golang.org go list -m github.com/ABZ-LABS/magnus-go-sdk@v0.2.0
    ```
 
 CI flags a tag that does not match `Version`, but by then the proxy may already

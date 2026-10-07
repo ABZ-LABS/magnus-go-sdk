@@ -32,7 +32,7 @@ import (
 )
 
 // Version is the SDK version, reported in the User-Agent.
-const Version = "0.1.0"
+const Version = "0.2.0"
 
 // DefaultTimeout is above the 60s read timeout common in reverse proxies.
 // Matching it exactly means the client gives up at the same instant the proxy

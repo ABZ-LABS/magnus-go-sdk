@@ -60,7 +60,7 @@ en todos los casos.
 `git`:
 
 ```bash
-GOPRIVATE=github.com/ABZ-LABS/magnus-go-sdk go get github.com/ABZ-LABS/magnus-go-sdk@v0.1.0
+GOPRIVATE=github.com/ABZ-LABS/magnus-go-sdk go get github.com/ABZ-LABS/magnus-go-sdk@v0.2.0
 ```
 
 `go env -w GOPRIVATE=github.com/ABZ-LABS/magnus-go-sdk` lo deja permanente en
@@ -72,7 +72,7 @@ publicada.
 módulo dentro del proyecto y apunta la ruta de import a la copia:
 
 ```bash
-git clone --branch v0.1.0 https://github.com/ABZ-LABS/magnus-go-sdk third_party/magnus-go-sdk
+git clone --branch v0.2.0 https://github.com/ABZ-LABS/magnus-go-sdk third_party/magnus-go-sdk
 go mod edit -replace github.com/ABZ-LABS/magnus-go-sdk=./third_party/magnus-go-sdk
 go mod tidy
 ```
@@ -298,7 +298,7 @@ nueva o rotada hace empezar de cero a cada persona.
 
 ## Verificar un despliegue
 
-`magnus-livecheck` corre los catorce chequeos de [CONTRACT.es.md](CONTRACT.es.md)
+`magnus-livecheck` corre los quince chequeos de [CONTRACT.es.md](CONTRACT.es.md)
 contra un despliegue real y sale con un código distinto de cero salvo que pasen
 todos:
 

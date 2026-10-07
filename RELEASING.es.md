@@ -10,7 +10,7 @@ lo indexa. No hay nada que subir. El repositorio tiene que ser público.
 
 1. Pon la versión en `Version` de `client.go`.
 2. Corre el livecheck contra la API de producción con un agente de prueba.
-   Tienen que pasar los catorce chequeos:
+   Tienen que pasar los quince chequeos:
 
    ```bash
    go run ./cmd/magnus-livecheck -agent <agente-de-prueba>
@@ -19,14 +19,15 @@ lo indexa. No hay nada que subir. El repositorio tiene que ser público.
 3. Haz el commit, crea el tag y súbelo:
 
    ```bash
-   git tag v0.1.0
-   git push origin main v0.1.0
+   git tag v0.2.0
+   git push origin main v0.2.0
    ```
 
-4. Pídeselo al proxy, para que aparezca en pkg.go.dev sin esperar:
+4. El CI se lo pide al proxy cuando pasan los tests y el chequeo de versión,
+   así aparece en pkg.go.dev sin esperar. A mano, si ese paso falló:
 
    ```bash
-   GOPROXY=proxy.golang.org go list -m github.com/ABZ-LABS/magnus-go-sdk@v0.1.0
+   GOPROXY=proxy.golang.org go list -m github.com/ABZ-LABS/magnus-go-sdk@v0.2.0
    ```
 
 CI marca un tag que no coincide con `Version`, pero para entonces el proxy puede

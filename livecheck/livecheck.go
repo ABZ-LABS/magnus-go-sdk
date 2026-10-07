@@ -1,6 +1,6 @@
 // Package livecheck runs the CONTRACT.md checklist against a real Magnus.
 //
-// It exits non-zero unless all fourteen checks pass. Maintainers run it before
+// It exits non-zero unless all fifteen checks pass. Maintainers run it before
 // every release; run it yourself to verify a deployment and a key.
 // Checks 5, 8, 9, 10 and 13 run real turns against the target agent - they cost
 // tokens and are recorded like any other conversation.
@@ -294,6 +294,19 @@ func Run(ctx context.Context, opts Options) int {
 				return "no X-RateLimit-Remaining header was seen on any response"
 			}
 			budget = remaining
+			return ""
+		}},
+		{15, "the team's replies can be fetched", func() string {
+			// A server older than the endpoint answers 404, and the SDK's
+			// UpdatesContext/FollowContext would fail for every user of this release.
+			user := fmt.Sprintf("livecheck-%d", time.Now().UnixNano())
+			page, err := client.ConversationUpdatesContext(ctx, agentID, user, "")
+			if err != nil {
+				return fmt.Sprintf("GET /v1/conversations/updates failed: %v", err)
+			}
+			if page.Object != "list" {
+				return fmt.Sprintf("GET /v1/conversations/updates answered object %q, not a list", page.Object)
+			}
 			return ""
 		}},
 	}
