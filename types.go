@@ -75,6 +75,26 @@ type Extensions struct {
 	Handoff bool `json:"handoff"`
 }
 
+// OperatorMessage is a reply a person from the team wrote in the dashboard.
+type OperatorMessage struct {
+	ID     string `json:"id"`
+	Object string `json:"object"`
+	// Author is always "human": the operator is never named.
+	Author  string `json:"author"`
+	Content string `json:"content"`
+	// Created is Unix seconds.
+	Created int64 `json:"created"`
+}
+
+// ConversationUpdates is one page of GET /v1/conversations/updates.
+type ConversationUpdates struct {
+	Object string `json:"object"`
+	// Handoff is whether a person owns the conversation now.
+	Handoff bool              `json:"handoff"`
+	Data    []OperatorMessage `json:"data"`
+	HasMore bool              `json:"has_more"`
+}
+
 // ChatChoice is one choice in a chat response. Magnus always returns exactly
 // one: a turn advances conversation state, so alternatives cannot exist for it.
 type ChatChoice struct {

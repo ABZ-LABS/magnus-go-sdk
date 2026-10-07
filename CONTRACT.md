@@ -193,6 +193,8 @@ turn after it, until the dashboard hands the conversation back to the agent or
 24 hours pass. On those later turns the agent does not run: the message is a
 fixed notice, `usage_source` is `"estimated"` and `trace_id` is `null`. A
 server older than this field omits it; read a missing `handoff` as `false`.
+The replies the person writes are fetched with
+[`GET /v1/conversations/updates`](#get-v1conversationsupdates).
 
 ### Limits that answer `200`
 
@@ -245,6 +247,44 @@ extensions follow an error.
 A client that ignores it hands a truncated or empty answer to its caller as
 though the turn had succeeded. **Every SDK must raise here.**
 
+## `GET /v1/conversations/updates`
+
+What the app has not seen of one end user's conversation: the replies a person
+from the team wrote in the dashboard, and whether a person owns the
+conversation now. A chat turn cannot carry them — they are written while the
+end user is not asking anything — so a client fetches them. This is Magnus's own
+endpoint, not part of the OpenAI surface. Same credentials as the chat.
+
+| Query | Notes |
+|---|---|
+| `user` | The same value the chat turns send. Without it, the key's one shared thread. |
+| `after` | The `id` of the last message the client already has. Without it, the replies of the last 24 hours (the longest a handoff lasts). |
+| `model` | Which agent's handoff to report, as in a chat turn. A key bound to an agent ignores it. |
+
+```json
+{
+  "object": "list",
+  "handoff": true,
+  "data": [
+    {"id": "...", "object": "conversation.message", "author": "human",
+     "content": "...", "created": 1767225600}
+  ],
+  "has_more": false
+}
+```
+
+- `data` is oldest first, at most 50 per page; with `has_more: true`, ask again
+  with the last `id` as `after`. Two messages written in the same instant still
+  page in a fixed order.
+- `author` is always `"human"`: the operator is never named.
+- `handoff` is the same flag a chat turn carries in `magnus.handoff`. When it
+  turns `false` the agent answers again; a client polling for replies can stop.
+- An `after` that is not a message of this end user is a `400` with
+  `code: "invalid_cursor"` and `param: "after"`.
+- It runs no turn and no model. It has its own rate bucket (see
+  [Rate limiting](#rate-limiting)): poll every few seconds while `handoff` is
+  `true`, and not otherwise.
+
 ## Errors
 
 ```json
@@ -253,7 +293,7 @@ though the turn had succeeded. **Every SDK must raise here.**
 
 | Status | `type` | `code` |
 |---|---|---|
-| 400 | `invalid_request_error` | `unsupported_parameter`, `model_not_allowed`, a turn error code, or `null` |
+| 400 | `invalid_request_error` | `unsupported_parameter`, `model_not_allowed`, `invalid_cursor`, a turn error code, or `null` |
 | 401 | `invalid_request_error` | `invalid_api_key` or `null` |
 | 403 | `invalid_request_error` | `no_organization`, `organization_deactivated` |
 | 404 | `invalid_request_error` | `model_not_found` |
@@ -266,6 +306,9 @@ though the turn had succeeded. **Every SDK must raise here.**
 `POST /v1/chat/completions` is limited to **120 requests per fixed one-hour
 window**, counted from the first request: per System API Key, and per user for
 JWTs and User API Keys. Idempotent replays count.
+
+`GET /v1/conversations/updates` has a bucket of its own: **7200 requests per
+window** per key, so polling never eats into the chat's turns.
 
 Responses that passed authentication carry `X-RateLimit-Remaining` and
 `X-RateLimit-Reset` (an ISO-8601 timestamp). A `429` also carries `Retry-After`
@@ -285,14 +328,11 @@ jitter. `4xx` other than `429` is never retried.
 - A last user message that starts with `### Task:` skips the agent: the message
   list goes to a plain LLM call, with no thread, and `usage_source` is `"none"`.
   Chat front ends send these for titles and tags.
-- A message that is exactly `reset`, `/bot` or `/auto` (any case) is a
-  command, not a turn: it ends a human takeover, if there is one, and answers a
-  fixed sentence without running the agent. A message that starts with
-  `/behavior` is a debug command.
+- A message that starts with `/behavior` is a debug command.
 - While a person has taken over a conversation, `/v1` answers `200` with a
   fixed notice and `magnus.handoff: true` (see
-  [Buffered response](#buffered-response)). The operator's reply does not reach
-  the API caller yet: only Telegram and WhatsApp deliver it.
+  [Buffered response](#buffered-response)). Only the team hands it back to the
+  agent: `reset`, `/bot` and `/auto` are ordinary messages.
 
 ## Known limits
 

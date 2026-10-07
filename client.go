@@ -577,6 +577,38 @@ type Conversation struct {
 	LastUsageSource string
 	// Handoff is true while a person from the team owns the conversation.
 	Handoff bool
+	// LastUpdateID is the id of the last reply from the team UpdatesContext
+	// returned. An app that must not show a reply twice across restarts stores
+	// it and sets it back on a new conversation.
+	LastUpdateID string
+}
+
+// ConversationUpdatesContext returns one page of GET /v1/conversations/updates.
+//
+// The replies a person from the team wrote to user in the dashboard after the
+// message after (or within the last 24 hours), and Handoff: whether a person
+// owns the conversation now. A chat turn cannot carry these — they are written
+// while the end user is not asking anything. Prefer Conversation.UpdatesContext
+// and Conversation.FollowContext, which keep the cursor.
+func (c *Client) ConversationUpdatesContext(
+	ctx context.Context, agentID, user, after string,
+) (*ConversationUpdates, error) {
+	if user == "" {
+		user = c.User
+	}
+	params := url.Values{"model": {agentID}}
+	if user != "" {
+		params.Set("user", user)
+	}
+	if after != "" {
+		params.Set("after", after)
+	}
+	var out ConversationUpdates
+	path := "/v1/conversations/updates?" + params.Encode()
+	if err := c.doJSON(ctx, http.MethodGet, path, nil, nil, true, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
 }
 
 // Conversation opens a thread with an agent for one end user.
@@ -662,6 +694,56 @@ func (cv *Conversation) StreamContext(
 			extensions := stream.Magnus()
 			cv.adopt(&extensions, stream.SessionID(), stream.Usage())
 		})
+}
+
+// UpdatesContext returns the replies a person from the team wrote since the
+// last call, oldest first, and refreshes Handoff. The operator is never named.
+// The first call, with no LastUpdateID, returns the last 24 hours.
+func (cv *Conversation) UpdatesContext(ctx context.Context) ([]OperatorMessage, error) {
+	var messages []OperatorMessage
+	for {
+		page, err := cv.client.ConversationUpdatesContext(ctx, cv.agentID, cv.user, cv.LastUpdateID)
+		if err != nil {
+			return messages, err
+		}
+		messages = append(messages, page.Data...)
+		if n := len(page.Data); n > 0 {
+			cv.LastUpdateID = page.Data[n-1].ID
+		}
+		cv.Handoff = page.Handoff
+		if !page.HasMore || len(page.Data) == 0 {
+			return messages, nil
+		}
+	}
+}
+
+// FollowContext calls fn with each reply from the team as it arrives, polling
+// every interval (5 s when zero), and returns nil once the conversation is back
+// with the agent — at once when nobody had taken over. It stops with the error
+// fn returns, or when ctx is done.
+func (cv *Conversation) FollowContext(
+	ctx context.Context, interval time.Duration, fn func(OperatorMessage) error,
+) error {
+	if interval == 0 {
+		interval = 5 * time.Second
+	}
+	for {
+		messages, err := cv.UpdatesContext(ctx)
+		if err != nil {
+			return err
+		}
+		for _, message := range messages {
+			if err := fn(message); err != nil {
+				return err
+			}
+		}
+		if !cv.Handoff {
+			return nil
+		}
+		if err := sleepCtx(ctx, interval); err != nil {
+			return err
+		}
+	}
 }
 
 // Reset forgets the session id this conversation holds.

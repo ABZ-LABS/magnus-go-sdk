@@ -160,9 +160,24 @@ out of turns, the turn returns HTTP 200 with a sentence instead of an answer,
 
 **A person can take over.** When the agent hands a conversation to someone on
 your team, or they take it from the dashboard, the agent stops answering until
-it is handed back. Every turn still returns 200 — first the agent's hand-off
-message, then a fixed notice — and `chat.Handoff` is `true` for as long as a
-person is in charge. The operator's own replies do not reach the API yet.
+the team hands it back. Every turn still returns 200 — first the agent's
+hand-off message, then a fixed notice — and `chat.Handoff` is `true` for as
+long as a person is in charge. What the person writes is not the answer to any
+turn, so this client fetches it — something an OpenAI client cannot do:
+
+```go
+if chat.Handoff {
+	// Polls every 5 s (interval 0) and returns once the agent is back.
+	err := chat.FollowContext(ctx, 0, func(m magnus.OperatorMessage) error {
+		show(m.Content) // Author is always "human", never a name
+		return nil
+	})
+}
+```
+
+`chat.UpdatesContext(ctx)` returns what is new without waiting, for your own
+loop. To avoid showing a reply twice across restarts, store `chat.LastUpdateID`
+and set it back on the new conversation.
 
 **A streamed turn can fail after HTTP 200.** Once the first chunk is out the
 status line cannot be taken back, so a failure arrives *inside* the stream. This
@@ -297,7 +312,8 @@ key for a test agent.
 | `ChatContext(ctx, agent, messages, *ChatOpts)` | one buffered turn |
 | `StreamChat(ctx, agent, messages, *ChatOpts)` | one streamed turn |
 | `SendMessageContext(ctx, agent, text, *SendMessageOpts)` | text in, text out |
-| `Conversation(agent, user)` / `Resume(agent, user, sessionID)` | a thread for one end user; after each turn `LastTraceID`, `LastUsageSource` and `Handoff` |
+| `Conversation(agent, user)` / `Resume(agent, user, sessionID)` | a thread for one end user; after each turn `LastTraceID`, `LastUsageSource` and `Handoff`; the team's replies with `UpdatesContext` and `FollowContext` |
+| `ConversationUpdatesContext(ctx, agent, user, after)` | one page of the team's replies, raw |
 | `RateLimit()` | last seen budget |
 
 `ListAgents`, `GetAgent`, `Chat` and `SendMessage` are the same calls with a

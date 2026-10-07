@@ -199,7 +199,8 @@ agente, y en todos los turnos siguientes, hasta que el panel le devuelva la
 conversación al agente o pasen 24 horas. En esos turnos siguientes el agente no
 corre: el mensaje es un aviso fijo, `usage_source` es `"estimated"` y
 `trace_id` es `null`. Un servidor anterior a este campo no lo manda; un
-`handoff` ausente se lee como `false`.
+`handoff` ausente se lee como `false`. Las respuestas que escribe la persona se
+piden con [`GET /v1/conversations/updates`](#get-v1conversationsupdates).
 
 ### Límites que responden `200`
 
@@ -256,6 +257,46 @@ Un cliente que lo ignore le entrega a quien lo llamó una respuesta truncada o
 vacía como si el turno hubiera salido bien. **Todo SDK tiene que lanzar un
 error aquí.**
 
+## `GET /v1/conversations/updates`
+
+Lo que la app todavía no vio de la conversación de un usuario final: las
+respuestas que una persona del equipo escribió en el panel, y si una persona
+está a cargo de la conversación ahora. Un turno de chat no puede llevarlas —se
+escriben mientras el usuario final no está preguntando nada—, así que el
+cliente las pide. Es un endpoint propio de Magnus, no parte de la superficie de
+OpenAI. Mismas credenciales que el chat.
+
+| Query | Notas |
+|---|---|
+| `user` | El mismo valor que mandan los turnos de chat. Sin él, el hilo único y compartido de la key. |
+| `after` | El `id` del último mensaje que el cliente ya tiene. Sin él, las respuestas de las últimas 24 horas (lo máximo que dura una derivación). |
+| `model` | De qué agente informar la derivación, como en un turno de chat. Una key atada a un agente lo ignora. |
+
+```json
+{
+  "object": "list",
+  "handoff": true,
+  "data": [
+    {"id": "...", "object": "conversation.message", "author": "human",
+     "content": "...", "created": 1767225600}
+  ],
+  "has_more": false
+}
+```
+
+- `data` va del más viejo al más nuevo, como mucho 50 por página; con
+  `has_more: true`, se pide de nuevo con el último `id` como `after`. Dos
+  mensajes escritos en el mismo instante igual se paginan en un orden fijo.
+- `author` es siempre `"human"`: el operador nunca se nombra.
+- `handoff` es el mismo indicador que un turno de chat lleva en
+  `magnus.handoff`. Cuando pasa a `false` el agente vuelve a responder; un
+  cliente que consultaba respuestas puede dejar de hacerlo.
+- Un `after` que no es un mensaje de este usuario final es un `400` con
+  `code: "invalid_cursor"` y `param: "after"`.
+- No corre ningún turno ni modelo. Tiene su propio cupo (ver
+  [Límite de peticiones](#límite-de-peticiones)): consultar cada pocos segundos
+  mientras `handoff` sea `true`, y no en otro caso.
+
 ## Errores
 
 ```json
@@ -264,7 +305,7 @@ error aquí.**
 
 | Estado | `type` | `code` |
 |---|---|---|
-| 400 | `invalid_request_error` | `unsupported_parameter`, `model_not_allowed`, un código de error del turno, o `null` |
+| 400 | `invalid_request_error` | `unsupported_parameter`, `model_not_allowed`, `invalid_cursor`, un código de error del turno, o `null` |
 | 401 | `invalid_request_error` | `invalid_api_key` o `null` |
 | 403 | `invalid_request_error` | `no_organization`, `organization_deactivated` |
 | 404 | `invalid_request_error` | `model_not_found` |
@@ -277,6 +318,9 @@ error aquí.**
 `POST /v1/chat/completions` está limitado a **120 peticiones por ventana fija de
 una hora**, contada desde la primera petición: por System API Key, y por usuario
 para JWTs y User API Keys. Las repeticiones idempotentes cuentan.
+
+`GET /v1/conversations/updates` tiene un cupo propio: **7200 peticiones por
+ventana** por key, así consultar nunca le come turnos al chat.
 
 Las respuestas que pasaron la autenticación llevan `X-RateLimit-Remaining` y
 `X-RateLimit-Reset` (una fecha ISO-8601). Un `429` lleva además `Retry-After` en
@@ -299,14 +343,11 @@ aleatoria. Un `4xx` distinto de `429` nunca se reintenta.
   agente: la lista de mensajes va a una llamada directa a un LLM, sin hilo, y
   `usage_source` es `"none"`. Los front ends de chat los mandan para títulos y
   etiquetas.
-- Un mensaje que es exactamente `reset`, `/bot` o `/auto` (sin importar
-  mayúsculas) es un comando, no un turno: termina la intervención de un
-  humano, si la hay, y responde una frase fija sin correr el agente. Un mensaje
-  que empieza con `/behavior` es un comando de depuración.
+- Un mensaje que empieza con `/behavior` es un comando de depuración.
 - Mientras una persona tomó una conversación, `/v1` responde `200` con un
   aviso fijo y `magnus.handoff: true` (ver
-  [Respuesta completa](#respuesta-completa)). La respuesta del operador todavía
-  no le llega a quien llama a la API: sólo Telegram y WhatsApp la entregan.
+  [Respuesta completa](#respuesta-completa)). Sólo el equipo se la devuelve al
+  agente: `reset`, `/bot` y `/auto` son mensajes comunes.
 
 ## Límites conocidos
 

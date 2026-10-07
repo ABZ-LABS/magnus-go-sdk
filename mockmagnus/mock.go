@@ -17,6 +17,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 var uuidRe = regexp.MustCompile(
@@ -68,8 +69,14 @@ type Server struct {
 	UsageSource string
 	// Handoff stands for a conversation a person from the team has taken over;
 	// HandoffOmitted for a server older than the field.
-	Handoff            bool
-	HandoffOmitted     bool
+	Handoff        bool
+	HandoffOmitted bool
+	// OperatorMessages is what GET /v1/conversations/updates serves, oldest
+	// first; UpdatesPage its page size (50 when zero); BeforeUpdates runs before
+	// each such request, so a test can change state between polls.
+	OperatorMessages   []map[string]any
+	UpdatesPage        int
+	BeforeUpdates      func(*Server)
 	Usage              map[string]int
 	RateLimitRemaining int
 	RateLimitReset     string
@@ -282,11 +289,64 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) {
 			"invalid_request_error", "model", "model_not_found",
 		), nil)
 
+	case r.Method == http.MethodGet && r.URL.Path == "/v1/conversations/updates":
+		s.updates(w, r)
+
 	case r.Method == http.MethodPost && r.URL.Path == "/v1/chat/completions":
 		s.chat(w, r, body)
 
 	default:
 		s.writeJSON(w, 404, errorBody("Not found.", "invalid_request_error", "", ""), nil)
+	}
+}
+
+// updates serves the operator's replies after a cursor, and the handoff state.
+func (s *Server) updates(w http.ResponseWriter, r *http.Request) {
+	s.mu.Lock()
+	if s.BeforeUpdates != nil {
+		s.BeforeUpdates(s)
+	}
+	messages := append([]map[string]any(nil), s.OperatorMessages...)
+	handoff, size := s.Handoff, s.UpdatesPage
+	s.mu.Unlock()
+	if size <= 0 {
+		size = 50
+	}
+	start := 0
+	if after := r.URL.Query().Get("after"); after != "" {
+		start = -1
+		for i, message := range messages {
+			if message["id"] == after {
+				start = i + 1
+				break
+			}
+		}
+		if start < 0 {
+			s.writeJSON(w, 400, errorBody(
+				"after is not a message of this user.",
+				"invalid_request_error", "after", "invalid_cursor",
+			), nil)
+			return
+		}
+	}
+	end := start + size
+	if end > len(messages) {
+		end = len(messages)
+	}
+	s.writeJSON(w, 200, map[string]any{
+		"object": "list", "handoff": handoff,
+		"data": messages[start:end], "has_more": end < len(messages),
+	}, nil)
+}
+
+var operatorSeq atomic.Int64
+
+// NewOperatorMessage is one reply a person from the team wrote, as the server
+// serves it.
+func NewOperatorMessage(content string) map[string]any {
+	return map[string]any{
+		"id": fmt.Sprintf("msg-%d", operatorSeq.Add(1)), "object": "conversation.message", "author": "human",
+		"content": content, "created": 1767225600,
 	}
 }
 

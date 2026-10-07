@@ -3,7 +3,9 @@ package magnus_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
+	"time"
 
 	magnus "github.com/ABZ-LABS/magnus-go-sdk"
 	"github.com/ABZ-LABS/magnus-go-sdk/mockmagnus"
@@ -225,5 +227,105 @@ func TestAServerWithoutTheHandoffFieldIsNotAHandoff(t *testing.T) {
 	_, _ = chat.SendContext(context.Background(), "Hola", nil)
 	if chat.Handoff {
 		t.Error("a missing field read as a handoff")
+	}
+}
+
+// A person from the team answers in the dashboard while the end user is not
+// asking anything, so no chat turn can carry the reply: the SDK fetches it.
+func TestUpdatesReturnsTheTeamsRepliesAndTheHandoff(t *testing.T) {
+	server, client := newFixture(t)
+	server.Handoff = true
+	server.OperatorMessages = []map[string]any{mockmagnus.NewOperatorMessage("Hola, soy del equipo")}
+	chat := client.Conversation("magnus_standard", "jane@company.com")
+
+	replies, err := chat.UpdatesContext(context.Background())
+	if err != nil {
+		t.Fatalf("Updates: %v", err)
+	}
+	if len(replies) != 1 || replies[0].Content != "Hola, soy del equipo" || replies[0].Author != "human" {
+		t.Fatalf("replies = %+v", replies)
+	}
+	if !chat.Handoff {
+		t.Error("handoff not refreshed")
+	}
+	last := server.Requests[len(server.Requests)-1]
+	if last.Method != "GET" || !strings.Contains(last.Path, "user=jane%40company.com") ||
+		!strings.Contains(last.Path, "model=magnus_standard") {
+		t.Errorf("request = %s %s", last.Method, last.Path)
+	}
+}
+
+func TestUpdatesBringsOnlyWhatIsNewAndFollowsPages(t *testing.T) {
+	server, client := newFixture(t)
+	server.UpdatesPage = 2
+	for _, c := range []string{"m0", "m1", "m2"} {
+		server.OperatorMessages = append(server.OperatorMessages, mockmagnus.NewOperatorMessage(c))
+	}
+	chat := client.Conversation("magnus_standard", "")
+
+	first, _ := chat.UpdatesContext(context.Background())
+	server.OperatorMessages = append(server.OperatorMessages, mockmagnus.NewOperatorMessage("m3"))
+	second, err := chat.UpdatesContext(context.Background())
+	if err != nil {
+		t.Fatalf("Updates: %v", err)
+	}
+	if len(first) != 3 || len(second) != 1 || second[0].Content != "m3" {
+		t.Errorf("first=%+v second=%+v", first, second)
+	}
+}
+
+func TestFollowYieldsAsRepliesArriveAndEndsWithTheHandoff(t *testing.T) {
+	server, client := newFixture(t)
+	server.Handoff = true
+	script := [][]string{{"uno"}, {"dos", "tres"}, {}}
+	server.BeforeUpdates = func(s *mockmagnus.Server) {
+		if len(script) == 0 {
+			s.Handoff = false
+			return
+		}
+		for _, c := range script[0] {
+			s.OperatorMessages = append(s.OperatorMessages, mockmagnus.NewOperatorMessage(c))
+		}
+		script = script[1:]
+	}
+	chat := client.Conversation("magnus_standard", "")
+
+	var seen []string
+	err := chat.FollowContext(context.Background(), time.Millisecond, func(m magnus.OperatorMessage) error {
+		seen = append(seen, m.Content)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("Follow: %v", err)
+	}
+	if strings.Join(seen, ",") != "uno,dos,tres" || chat.Handoff {
+		t.Errorf("seen=%v handoff=%v", seen, chat.Handoff)
+	}
+}
+
+func TestFollowEndsAtOnceWhenNobodyTookOver(t *testing.T) {
+	server, client := newFixture(t)
+	chat := client.Conversation("magnus_standard", "")
+
+	calls := 0
+	err := chat.FollowContext(context.Background(), time.Millisecond, func(magnus.OperatorMessage) error {
+		calls++
+		return nil
+	})
+	if err != nil || calls != 0 || len(server.Requests) != 1 {
+		t.Errorf("err=%v calls=%d requests=%d", err, calls, len(server.Requests))
+	}
+}
+
+func TestAStoredCursorResumesWithoutRepeats(t *testing.T) {
+	server, client := newFixture(t)
+	seenBefore := mockmagnus.NewOperatorMessage("visto")
+	server.OperatorMessages = []map[string]any{seenBefore, mockmagnus.NewOperatorMessage("nuevo")}
+	chat := client.Conversation("magnus_standard", "")
+	chat.LastUpdateID = seenBefore["id"].(string)
+
+	replies, err := chat.UpdatesContext(context.Background())
+	if err != nil || len(replies) != 1 || replies[0].Content != "nuevo" {
+		t.Errorf("err=%v replies=%+v", err, replies)
 	}
 }
