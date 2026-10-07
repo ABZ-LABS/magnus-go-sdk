@@ -69,6 +69,10 @@ type Extensions struct {
 	// (the len/4 character heuristic, for turns that never reached an LLM).
 	// Anyone metering or billing off Usage has to be able to tell them apart.
 	UsageSource string `json:"usage_source"`
+	// Handoff is true while a person from the team owns the conversation: the
+	// turn where the agent hands off, and every turn after it, whose reply is a
+	// fixed notice. A server older than the field omits it, which reads false.
+	Handoff bool `json:"handoff"`
 }
 
 // ChatChoice is one choice in a chat response. Magnus always returns exactly

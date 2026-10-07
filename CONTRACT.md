@@ -172,7 +172,8 @@ logical turn and never reuse one across end users.
     "session_source": "explicit" | "derived" | "new",
     "trace_id": "..." | null,
     "turn_id": "..." | null,
-    "usage_source": "measured" | "estimated"
+    "usage_source": "measured" | "estimated",
+    "handoff": true | false
   }
 }
 ```
@@ -185,6 +186,13 @@ refusal or an error it echoes the id the request resolved to.
 `len(text) // 4` fallback used by turns that never reached an LLM (`estimated`),
 which includes the refusals below. Anyone metering or billing off `usage` has to
 be able to tell them apart.
+
+`handoff` is `true` while a person from the team owns the conversation: on the
+turn where the agent hands off, whose message is the agent's own, and on every
+turn after it, until the dashboard hands the conversation back to the agent or
+24 hours pass. On those later turns the agent does not run: the message is a
+fixed notice, `usage_source` is `"estimated"` and `trace_id` is `null`. A
+server older than this field omits it; read a missing `handoff` as `false`.
 
 ### Limits that answer `200`
 
@@ -281,9 +289,10 @@ jitter. `4xx` other than `429` is never retried.
   command, not a turn: it ends a human takeover, if there is one, and answers a
   fixed sentence without running the agent. A message that starts with
   `/behavior` is a debug command.
-- While a human operator has taken over a conversation, `/v1` answers `200`
-  with a fixed placeholder, and the operator's reply does not reach the API
-  caller.
+- While a person has taken over a conversation, `/v1` answers `200` with a
+  fixed notice and `magnus.handoff: true` (see
+  [Buffered response](#buffered-response)). The operator's reply does not reach
+  the API caller yet: only Telegram and WhatsApp deliver it.
 
 ## Known limits
 

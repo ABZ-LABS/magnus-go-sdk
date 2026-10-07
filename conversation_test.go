@@ -174,3 +174,56 @@ func TestAFailedStreamedTurnStillAdvancedTheConversation(t *testing.T) {
 		t.Errorf("session = %q, want it kept at %q", chat.SessionID, known)
 	}
 }
+
+// A person from the team can take a conversation over from the agent. The
+// server keeps answering 200 — the agent's hand-off, then a fixed notice — so
+// without the flag a caller cannot tell a person is in charge.
+func TestConversationHandoffFollowsTheServer(t *testing.T) {
+	server, client := newFixture(t)
+	chat := client.Conversation("magnus_standard", "")
+
+	_, _ = chat.SendContext(context.Background(), "Hola", nil)
+	if chat.Handoff {
+		t.Fatal("a conversation starts with the agent")
+	}
+	server.Handoff = true
+	_, _ = chat.SendContext(context.Background(), "Quiero hablar con una persona", nil)
+	if !chat.Handoff {
+		t.Error("handoff not reported")
+	}
+	server.Handoff = false
+	_, _ = chat.SendContext(context.Background(), "Hola de nuevo", nil)
+	if chat.Handoff {
+		t.Error("handoff outlived the server saying so")
+	}
+}
+
+func TestAStreamedTurnReportsTheHandoff(t *testing.T) {
+	server, client := newFixture(t)
+	server.Handoff = true
+	chat := client.Conversation("magnus_standard", "")
+
+	stream, err := chat.StreamContext(context.Background(), "Hola", nil)
+	if err != nil {
+		t.Fatalf("Stream: %v", err)
+	}
+	if _, err := stream.Collect(); err != nil {
+		t.Fatalf("Collect: %v", err)
+	}
+	stream.Close()
+
+	if !chat.Handoff {
+		t.Error("handoff not reported on a streamed turn")
+	}
+}
+
+func TestAServerWithoutTheHandoffFieldIsNotAHandoff(t *testing.T) {
+	server, client := newFixture(t)
+	server.HandoffOmitted = true
+	chat := client.Conversation("magnus_standard", "")
+
+	_, _ = chat.SendContext(context.Background(), "Hola", nil)
+	if chat.Handoff {
+		t.Error("a missing field read as a handoff")
+	}
+}

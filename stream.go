@@ -223,4 +223,7 @@ func mergeExtensions(dst *Extensions, src *Extensions) {
 	if src.UsageSource != "" {
 		dst.UsageSource = src.UsageSource
 	}
+	if src.Handoff {
+		dst.Handoff = true
+	}
 }

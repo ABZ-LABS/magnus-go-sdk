@@ -178,7 +178,8 @@ turno lógico y nunca reutilices uno entre usuarios finales.
     "session_source": "explicit" | "derived" | "new",
     "trace_id": "..." | null,
     "turn_id": "..." | null,
-    "usage_source": "measured" | "estimated"
+    "usage_source": "measured" | "estimated",
+    "handoff": true | false
   }
 }
 ```
@@ -191,6 +192,14 @@ enviado. En un rechazo o un error repite el id al que resolvió la petición.
 (`measured`) del cálculo de respaldo `len(text) // 4` que usan los turnos que
 nunca llegaron a un LLM (`estimated`), lo que incluye los rechazos de abajo.
 Quien mida o facture a partir de `usage` tiene que poder distinguirlos.
+
+`handoff` es `true` mientras una persona del equipo está a cargo de la
+conversación: en el turno en que el agente deriva, cuyo mensaje es del propio
+agente, y en todos los turnos siguientes, hasta que el panel le devuelva la
+conversación al agente o pasen 24 horas. En esos turnos siguientes el agente no
+corre: el mensaje es un aviso fijo, `usage_source` es `"estimated"` y
+`trace_id` es `null`. Un servidor anterior a este campo no lo manda; un
+`handoff` ausente se lee como `false`.
 
 ### Límites que responden `200`
 
@@ -294,9 +303,10 @@ aleatoria. Un `4xx` distinto de `429` nunca se reintenta.
   mayúsculas) es un comando, no un turno: termina la intervención de un
   humano, si la hay, y responde una frase fija sin correr el agente. Un mensaje
   que empieza con `/behavior` es un comando de depuración.
-- Mientras un operador humano tomó una conversación, `/v1` responde `200` con
-  un texto fijo, y la respuesta del operador no le llega a quien llama a la
-  API.
+- Mientras una persona tomó una conversación, `/v1` responde `200` con un
+  aviso fijo y `magnus.handoff: true` (ver
+  [Respuesta completa](#respuesta-completa)). La respuesta del operador todavía
+  no le llega a quien llama a la API: sólo Telegram y WhatsApp la entregan.
 
 ## Límites conocidos
 

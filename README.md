@@ -158,6 +158,12 @@ out of turns, the turn returns HTTP 200 with a sentence instead of an answer,
 `usage_source: "estimated"` and no trace id, not a 429. The list is in
 [CONTRACT.md](CONTRACT.md#limits-that-answer-200).
 
+**A person can take over.** When the agent hands a conversation to someone on
+your team, or they take it from the dashboard, the agent stops answering until
+it is handed back. Every turn still returns 200 — first the agent's hand-off
+message, then a fixed notice — and `chat.Handoff` is `true` for as long as a
+person is in charge. The operator's own replies do not reach the API yet.
+
 **A streamed turn can fail after HTTP 200.** Once the first chunk is out the
 status line cannot be taken back, so a failure arrives *inside* the stream. This
 client surfaces it on `stream.Err()` as a `*StreamError` rather than handing back
@@ -291,7 +297,7 @@ key for a test agent.
 | `ChatContext(ctx, agent, messages, *ChatOpts)` | one buffered turn |
 | `StreamChat(ctx, agent, messages, *ChatOpts)` | one streamed turn |
 | `SendMessageContext(ctx, agent, text, *SendMessageOpts)` | text in, text out |
-| `Conversation(agent, user)` / `Resume(agent, user, sessionID)` | a thread for one end user |
+| `Conversation(agent, user)` / `Resume(agent, user, sessionID)` | a thread for one end user; after each turn `LastTraceID`, `LastUsageSource` and `Handoff` |
 | `RateLimit()` | last seen budget |
 
 `ListAgents`, `GetAgent`, `Chat` and `SendMessage` are the same calls with a

@@ -165,6 +165,13 @@ su plan se quedan sin turnos, el turno devuelve HTTP 200 con una frase en lugar
 de una respuesta, `usage_source: "estimated"` y sin trace id; no un 429. La
 lista está en [CONTRACT.es.md](CONTRACT.es.md#límites-que-responden-200).
 
+**Una persona puede tomar la conversación.** Cuando el agente deriva a alguien
+de tu equipo, o lo toman desde el panel, el agente deja de responder hasta que
+se la devuelvan. Cada turno sigue devolviendo 200 —primero el mensaje de
+derivación del agente, después un aviso fijo— y `chat.Handoff` es `true`
+mientras una persona esté a cargo. Las respuestas del operador todavía no
+llegan por la API.
+
 **Un turno en streaming puede fallar después del HTTP 200.** Una vez que salió
 el primer fragmento, la línea de estado ya no se puede cambiar, así que el
 fallo llega *dentro* del stream. Este cliente lo expone en `stream.Err()` como
@@ -303,7 +310,7 @@ agente, así que crea la key para un agente de prueba.
 | `ChatContext(ctx, agent, messages, *ChatOpts)` | un turno completo |
 | `StreamChat(ctx, agent, messages, *ChatOpts)` | un turno en streaming |
 | `SendMessageContext(ctx, agent, text, *SendMessageOpts)` | entra texto, sale texto |
-| `Conversation(agent, user)` / `Resume(agent, user, sessionID)` | un hilo para un usuario final |
+| `Conversation(agent, user)` / `Resume(agent, user, sessionID)` | un hilo para un usuario final; después de cada turno `LastTraceID`, `LastUsageSource` y `Handoff` |
 | `RateLimit()` | último cupo visto |
 
 `ListAgents`, `GetAgent`, `Chat` y `SendMessage` son las mismas llamadas con un

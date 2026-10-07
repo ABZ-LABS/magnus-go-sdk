@@ -59,13 +59,17 @@ type Server struct {
 
 	Agents []string
 	// APIKey empty accepts any non-empty credential; set it to enforce one.
-	APIKey             string
-	Requests           []Request
-	TurnsRun           int
-	Reply              string
-	TraceID            string
-	TurnID             string
-	UsageSource        string
+	APIKey      string
+	Requests    []Request
+	TurnsRun    int
+	Reply       string
+	TraceID     string
+	TurnID      string
+	UsageSource string
+	// Handoff stands for a conversation a person from the team has taken over;
+	// HandoffOmitted for a server older than the field.
+	Handoff            bool
+	HandoffOmitted     bool
 	Usage              map[string]int
 	RateLimitRemaining int
 	RateLimitReset     string
@@ -360,15 +364,19 @@ func (s *Server) chat(w http.ResponseWriter, r *http.Request, body map[string]an
 		effective = "11111111-2222-3333-4444-555555555555"
 	}
 	reply := s.Reply
+	magnus := map[string]any{
+		"session_id":     effective,
+		"session_source": source,
+		"trace_id":       s.TraceID,
+		"turn_id":        s.TurnID,
+		"usage_source":   s.UsageSource,
+	}
+	if !s.HandoffOmitted {
+		magnus["handoff"] = s.Handoff
+	}
 	extensions := map[string]any{
 		"session_id": effective,
-		"magnus": map[string]any{
-			"session_id":     effective,
-			"session_source": source,
-			"trace_id":       s.TraceID,
-			"turn_id":        s.TurnID,
-			"usage_source":   s.UsageSource,
-		},
+		"magnus":     magnus,
 	}
 	usage := map[string]int{}
 	for key, value := range s.Usage {

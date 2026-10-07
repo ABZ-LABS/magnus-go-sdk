@@ -575,6 +575,8 @@ type Conversation struct {
 	// LastUsage and LastUsageSource are the last turn's token accounting.
 	LastUsage       *Usage
 	LastUsageSource string
+	// Handoff is true while a person from the team owns the conversation.
+	Handoff bool
 }
 
 // Conversation opens a thread with an agent for one end user.
@@ -687,6 +689,8 @@ func (cv *Conversation) adopt(ext *Extensions, fallbackSessionID string, usage *
 		cv.LastTurnID = ext.TurnID
 		cv.LastUsageSource = ext.UsageSource
 	}
+	// Every turn says it again; a turn without the field is not a handoff.
+	cv.Handoff = ext != nil && ext.Handoff
 	if usage != nil {
 		cv.LastUsage = usage
 	}
