@@ -1,0 +1,29 @@
+# Dependabot: version updates grouped weekly (minor+patch in one PR per
+# ecosystem), security updates as they come. Added by the 2026-10-28 dependency
+# audit: no repository had it, and a Postgres from 2023 and a Pillow with 47
+# advisories had gone unnoticed. Majors stay separate PRs on purpose.
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "America/Montevideo"
+    open-pull-requests-limit: 5
+    groups:
+      gomod-minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "07:00"
+      timezone: "America/Montevideo"
+    open-pull-requests-limit: 5
+    groups:
+      github-actions-minor-and-patch:
+        update-types: ["minor", "patch"]
